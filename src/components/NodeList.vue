@@ -48,14 +48,14 @@ const { pickSurfaceClass } = useBackgroundSurface()
 const columns: ColumnConfig[] = [
   { key: 'status', label: '状态', width: '40px', sortable: false },
   { key: 'os', label: '系统', width: '40px', sortable: false },
-  { key: 'name', label: '节点', width: 'minmax(160px, 0.8fr)', sortable: true },
-  { key: 'tags', label: '标签', width: 'minmax(200px, 1fr)', sortable: false },
-  { key: 'uptime', label: '运行时间', width: '116px', sortable: true },
+  { key: 'name', label: '节点', width: 'minmax(150px, 0.8fr)', sortable: true },
+  { key: 'tags', label: '标签', width: 'minmax(180px, 1fr)', sortable: false },
   { key: 'cpu', label: 'CPU', width: '100px', sortable: false },
   { key: 'mem', label: '内存', width: '100px', sortable: false },
   { key: 'disk', label: '硬盘', width: '100px', sortable: false },
   { key: 'traffic', label: '流量', width: '100px', sortable: false },
   { key: 'rate', label: '速率', width: '80px', sortable: true },
+  { key: 'latency', label: '延迟', width: '180px', sortable: false },
 ]
 
 const sortKey = ref<string>('')
@@ -286,20 +286,20 @@ function getCustomTags(node: NodeData): Array<string> {
                   >
                   <span class="truncate">{{ node.name }}</span>
                 </div>
-                <div
-                  v-if="getPriceTags(node).length > 0"
-                  class="text-[11px] text-muted-foreground/70 truncate"
-                >
-                  <span v-for="(tag, tagIndex) in getPriceTags(node)" :key="tagIndex" :class="[!!tagIndex && 'ml-1']">
-                    <template v-if="tag.highlightValue">
-                      <span>{{ tag.prefix }}</span>
-                      <span :class="getRemainingTimeTagClass(node)">{{ tag.highlightValue }}</span>
-                      <span>{{ tag.suffix }}</span>
-                    </template>
-                    <template v-else>
-                      {{ tag.text }}
-                    </template>
-                  </span>
+                <div v-if="node.uptime" class="text-[11px] text-muted-foreground/70 truncate">
+                  {{ formatUptime(node.uptime ?? 0) }}
+                  <template v-if="getPriceTags(node).length > 0">
+                    <span v-for="(tag, tagIndex) in getPriceTags(node)" :key="tagIndex" class="ml-1">
+                      <template v-if="tag.highlightValue">
+                        <span>{{ tag.prefix }}</span>
+                        <span :class="getRemainingTimeTagClass(node)">{{ tag.highlightValue }}</span>
+                        <span>{{ tag.suffix }}</span>
+                      </template>
+                      <template v-else>
+                        {{ tag.text }}
+                      </template>
+                    </span>
+                  </template>
                 </div>
               </div>
 
@@ -315,18 +315,14 @@ function getCustomTags(node: NodeData): Array<string> {
                 </div>
               </div>
 
-              <!-- 运行时间 -->
-              <div v-else-if="col.key === 'uptime'" class="flex flex-col gap-0.5">
-                <span class="text-[10px] text-muted-foreground truncate">
-                  {{ formatUptime(node.uptime ?? 0) }}
-                </span>
+              <!-- 三网和 BGP 实时延迟 -->
+              <div v-else-if="col.key === 'latency'" class="flex items-center">
                 <NodePingListCell
-                  :uuid="node.uuid"
-                  :online="node.online"
+                  :ping="node.ping"
                   role="button"
                   tabindex="0"
                   class="outline-none"
-                  :aria-label="`${node.name} 延迟 / 丢包`"
+                  :aria-label="`${node.name} 三网和 BGP 实时延迟`"
                   @click.stop="openPingDialog(node)"
                   @keydown.enter.stop.prevent="openPingDialog(node)"
                   @keydown.space.stop.prevent="openPingDialog(node)"
