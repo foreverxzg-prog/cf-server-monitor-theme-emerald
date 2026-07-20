@@ -61,7 +61,7 @@ export const CURRENCY_SYMBOLS = Object.fromEntries(
 
 const EXCHANGE_RATE_APIS = [
   {
-    url: 'https://api.frankfurter.app/latest?from=CNY',
+    url: 'https://api.frankfurter.dev/v1/latest?from=CNY',
     parse: (data: unknown) => (data as { rates?: unknown }).rates,
   },
   {

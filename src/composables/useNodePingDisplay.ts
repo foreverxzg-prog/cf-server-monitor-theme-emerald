@@ -5,9 +5,6 @@ import { formatDateTime } from '@/utils/helper'
 
 export type NodePingMetric = 'latency' | 'loss'
 
-// getRecords 在新版主控中返回的是近期可用样本，不保证覆盖完整 1 小时。
-const RECENT_PING_RECORDS_QUERY_HOURS = 1
-
 export interface NodePingBar {
   key: string
   className: string
@@ -50,16 +47,10 @@ export function useNodePingDisplay(
   uuid: MaybeRefOrGetter<string>,
   options: UseNodePingDisplayOptions = {},
 ) {
-  // Keep the recent window small because the CF public API limits anonymous history.
-  // record fields for compatibility only. They can report records as disabled
-  // even when ping metrics are available, so only an explicit caller option
-  // should prevent the query.
+  // Home-card samples are appended by the shared subscribe=all WebSocket.
   const pingStatsEnabled = computed(() => options.enabled === undefined || toValue(options.enabled))
 
-  const pingRecordsQueryHours = computed(() => RECENT_PING_RECORDS_QUERY_HOURS)
-
   const pingStats = useNodePingStats(uuid, {
-    hours: pingRecordsQueryHours,
     enabled: pingStatsEnabled,
   })
 
@@ -151,7 +142,6 @@ export function useNodePingDisplay(
   return {
     pingStats,
     pingStatsEnabled,
-    pingRecordsQueryHours,
     latencyRenderBars,
     lossRenderBars,
     latencyDisplay,

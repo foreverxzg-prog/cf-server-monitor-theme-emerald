@@ -6,6 +6,12 @@ import { parseNodeGroups } from '@/utils/groupHelper'
 /** 流量限制类型 */
 export type TrafficLimitType = 'up' | 'down' | 'min' | 'max' | 'sum'
 
+export interface PingHistoryPoint {
+  time: string
+  latency: number | null
+  loss: number | null
+}
+
 /** 节点完整信息（合并 Client 和 Status） */
 export interface NodeData {
   uuid: string
@@ -93,11 +99,13 @@ interface StatusData {
 }
 
 const EARTH_SNAPSHOT_INTERVAL_MS = 60_000
+const PING_HISTORY_LIMIT = 10
 
 const useNodesStore = defineStore('nodes', () => {
   // ===== 状态 =====
   const nodes = ref<NodeData[]>([])
   const earthNodes = ref<NodeData[]>([])
+  const pingHistoryByUuid = ref<Record<string, PingHistoryPoint[]>>({})
   const wsConnectionState = ref<WsConnectionState>('disconnected')
   const wsReconnectAttempts = ref<number>(0)
   let lastEarthSnapshotAt = 0
@@ -244,6 +252,38 @@ const useNodesStore = defineStore('nodes', () => {
       connections: status.connections,
       connections_udp: status.connections_udp,
       uptime: status.uptime,
+      ping: status.ping,
+    }
+  }
+
+  function recordPingSample(uuid: string, status: NodeStatus): void {
+    const pingEntries = Object.values(status.ping ?? {})
+    const latencyValues = pingEntries
+      .map(entry => entry.latest)
+      .filter(value => Number.isFinite(value) && value > 0)
+    const lossValues = pingEntries
+      .map(entry => entry.loss)
+      .filter(value => Number.isFinite(value) && value >= 0)
+
+    if (!latencyValues.length && !lossValues.length)
+      return
+
+    const point: PingHistoryPoint = {
+      time: status.time || new Date().toISOString(),
+      latency: latencyValues.length
+        ? latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length
+        : null,
+      loss: lossValues.length
+        ? lossValues.reduce((sum, value) => sum + value, 0) / lossValues.length
+        : null,
+    }
+    const history = pingHistoryByUuid.value[uuid] ?? []
+    if (history.at(-1)?.time === point.time)
+      return
+
+    pingHistoryByUuid.value = {
+      ...pingHistoryByUuid.value,
+      [uuid]: [...history, point].slice(-PING_HISTORY_LIMIT),
     }
   }
 
@@ -290,6 +330,9 @@ const useNodesStore = defineStore('nodes', () => {
           : newNode,
         )
       }
+
+      if (status)
+        recordPingSample(uuid, status)
     })
 
     // 移除不存在的节点
@@ -316,7 +359,7 @@ const useNodesStore = defineStore('nodes', () => {
   /**
    * 更新节点状态（实时更新）
    */
-  function updateNodeStatuses(statuses: Record<string, NodeStatus>): void {
+  function updateNodeStatuses(statuses: Record<string, NodeStatus>, trackPing = true): void {
     let hasChanges = false
 
     Object.entries(statuses).forEach(([uuid, status]) => {
@@ -329,6 +372,8 @@ const useNodesStore = defineStore('nodes', () => {
         return
 
       nodes.value[index] = updateNodeStatus(node, extractStatusData(status))
+      if (trackPing)
+        recordPingSample(uuid, status)
       hasChanges = true
     })
 
@@ -410,6 +455,7 @@ const useNodesStore = defineStore('nodes', () => {
    */
   function clearNodes(): void {
     nodes.value = []
+    pingHistoryByUuid.value = {}
     refreshEarthNodes(true)
   }
 
@@ -417,6 +463,7 @@ const useNodesStore = defineStore('nodes', () => {
     // 状态
     nodes,
     earthNodes,
+    pingHistoryByUuid,
     wsConnectionState,
     wsReconnectAttempts,
     // 计算属性
@@ -427,6 +474,7 @@ const useNodesStore = defineStore('nodes', () => {
     // 方法
     initNodes,
     updateNodeStatuses,
+    recordPingSample,
     updateNodeClients,
     sortNodesByWeight,
     updateWsState,
