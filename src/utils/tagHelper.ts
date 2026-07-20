@@ -115,6 +115,7 @@ const EXPIRE_THRESHOLDS = {
 
 const TAG_COLOR_SUFFIX_REGEX = /<(\w+)>$/
 const TAG_COLOR_SUFFIX_REMOVE_REGEX = /<\w+>$/
+const TAG_SEPARATOR_REGEX = /[,;]/
 
 /**
  * 解析计费周期类型
@@ -305,14 +306,17 @@ export function getTagColorHex(color: TagColor): string {
 
 /**
  * 解析标签字符串为标签列表
- * @param tags 标签字符串，用分号分隔
+ * @param tags 标签字符串，用逗号或分号分隔
  * @returns 标签数组
  */
 export function parseTags(tags: string | undefined): Array<{ text: string, color: TagColor, hex: string }> {
   if (!tags || tags.trim() === '')
     return []
 
-  const tagList = tags.split(';').filter(tag => tag.trim() !== '')
+  const tagList = tags
+    .split(TAG_SEPARATOR_REGEX)
+    .map(tag => tag.trim())
+    .filter(Boolean)
 
   return tagList.map((tag, index) => {
     const { text, color } = parseTagWithColor(tag)
