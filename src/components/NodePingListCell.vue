@@ -33,7 +33,9 @@ function getPingToneClass(latency: number, available: boolean): string {
     return 'text-muted-foreground'
   if (latency <= 100)
     return 'text-emerald-600 dark:text-emerald-400'
-  if (latency <= 200)
+  if (latency <= 180)
+    return 'text-lime-600 dark:text-lime-400'
+  if (latency <= 260)
     return 'text-amber-600 dark:text-amber-400'
   return 'text-rose-600 dark:text-rose-400'
 }
