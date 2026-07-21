@@ -211,6 +211,9 @@ export function getApiBases(): string[] {
 }
 
 export function getWebSocketBases(): string[] {
+  if (isProxyWebSocketEnabled())
+    return getApiBases()
+
   const configured = getMetaContent('webSocketBase')
   const bases = configured.split(',').map(normalizeBase).filter(Boolean)
   return bases.length ? [...new Set(bases)] : getApiBases()

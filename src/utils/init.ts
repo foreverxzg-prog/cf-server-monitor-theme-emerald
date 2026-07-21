@@ -14,7 +14,6 @@ import {
   getWebSocketBases,
   hasMultipleApiBases,
   isEnabledValue,
-  isProxyWebSocketEnabled,
 } from '@/utils/api'
 
 interface TurnstileApi {
@@ -147,7 +146,6 @@ class InitManager {
   private reconnectTimers = new Map<number, ReturnType<typeof setTimeout>>()
   private reconnectAttempts = new Map<number, number>()
   private liveUpdateTimer: ReturnType<typeof setInterval> | null = null
-  private pollTimer: ReturnType<typeof setInterval> | null = null
   private liveSampleQueues = new Map<string, LiveSample[]>()
   private livePlaybackTimes = new Map<string, number>()
   private pendingStatuses = new Map<string, NodeStatus>()
@@ -183,19 +181,11 @@ class InitManager {
       this.appStore.updateLoginState(configs.some(item => item.authorization))
       await this.loadNodes()
       const updateInterval = getDataUpdateIntervalMs(this.appStore.publicSettings)
-      if (isProxyWebSocketEnabled()) {
-        this.connectAllSockets()
-        this.liveUpdateTimer = setInterval(() => {
-          this.advanceLiveSamples()
-          this.flushPendingStatuses()
-        }, updateInterval)
-      }
-      else {
-        this.nodesStore.updateWsState('disconnected', 0)
-        this.pollTimer = setInterval(() => {
-          this.loadNodes().catch(() => {})
-        }, updateInterval)
-      }
+      this.connectAllSockets()
+      this.liveUpdateTimer = setInterval(() => {
+        this.advanceLiveSamples()
+        this.flushPendingStatuses()
+      }, updateInterval)
     }
     catch (error) {
       this.appStore.connectionError = true
@@ -402,9 +392,6 @@ class InitManager {
     if (this.liveUpdateTimer)
       clearInterval(this.liveUpdateTimer)
     this.liveUpdateTimer = null
-    if (this.pollTimer)
-      clearInterval(this.pollTimer)
-    this.pollTimer = null
     this.liveSampleQueues.clear()
     this.livePlaybackTimes.clear()
     this.pendingStatuses.clear()

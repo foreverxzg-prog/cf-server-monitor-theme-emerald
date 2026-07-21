@@ -58,10 +58,9 @@ export default defineConfig(({ mode, command }) => {
   const isVercelBuild = mode === 'vercel'
   // Vercel Functions can proxy HTTP requests, but cannot relay WebSocket upgrades.
   const proxyBackend = isVercelBuild || env.PROXY_BACKEND?.toLowerCase() === 'true'
-  const webSocketBases = isVercelBuild ? apiBases.slice(0, 1) : []
-  const proxyWebSocket = isVercelBuild
-    ? webSocketBases.length > 0
-    : env.PROXY_WEBSOCKET?.toLowerCase() !== 'false'
+  const proxyWebSocket = env.PROXY_WEBSOCKET?.toLowerCase() !== 'false'
+  // Direct WebSocket connections need their own base when HTTP still uses a proxy.
+  const webSocketBases = proxyWebSocket ? [] : (proxyBackend ? apiBases.slice(0, 1) : apiBases)
   const cspApi = splitList(env.CSP_API).map(normalizeOrigin).filter((value): value is string => Boolean(value))
   const cspStatic = splitList(env.CSP_STATIC).map(normalizeOrigin).filter((value): value is string => Boolean(value))
   const outboundProxy = env.HTTPS_PROXY || env.HTTP_PROXY
