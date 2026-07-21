@@ -418,7 +418,7 @@ onMounted(async () => {
         >
           <img
             v-if="item.icon === 'tabler:world-pin' && flagSrc && flagVisible" :src="flagSrc" :alt="countryCode"
-            class="max-h-4 max-w-4 rounded-xs shadow-xs" @error="handleFlagError"
+            class="w-4 h-auto max-h-4 rounded-xs shadow-xs" @error="handleFlagError"
           >
           <div
             v-else
