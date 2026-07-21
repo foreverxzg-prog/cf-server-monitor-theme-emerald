@@ -3,7 +3,9 @@ main = "cloudflare/worker.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
-PROXY_BACKEND = "false"
+API_BASE = "https://monitor.example.com"
+PROXY_BACKEND = "true"
+PROXY_WEBSOCKET = "false"
 
 [build]
 command = "bun run build:cloudflare"
@@ -11,4 +13,5 @@ command = "bun run build:cloudflare"
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+run_worker_first = true
 not_found_handling = "single-page-application"

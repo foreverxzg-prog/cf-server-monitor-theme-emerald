@@ -55,6 +55,7 @@ export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiBases = splitList(env.API_BASE).map(normalizeOrigin).filter((value): value is string => Boolean(value))
   const isVercelBuild = mode === 'vercel'
+  const isCloudflareBuild = mode === 'cloudflare'
   // Vercel Functions can proxy HTTP requests, but cannot relay WebSocket upgrades.
   const proxyBackend = isVercelBuild || env.PROXY_BACKEND?.toLowerCase() === 'true'
   const proxyWebSocket = env.PROXY_WEBSOCKET?.toLowerCase() !== 'false'
@@ -99,13 +100,15 @@ export default defineConfig(({ mode, command }) => {
         name: 'cf-server-monitor-runtime-config',
         transformIndexHtml(html) {
           let result = html
-          if (command === 'build' && apiBases.length) {
+          // Cloudflare variables are runtime Worker bindings, so its Worker injects
+          // these values when serving HTML instead of baking them into dist/.
+          if (command === 'build' && !isCloudflareBuild && apiBases.length) {
             result = result.replace(
               API_BASE_META_REGEX,
               `<meta name="apiBase" content="${escapeHtml(apiBases.join(','))}" />`,
             )
           }
-          if (command === 'build') {
+          if (command === 'build' && !isCloudflareBuild) {
             result = result.replace(
               WEBSOCKET_BASE_META_REGEX,
               `<meta name="webSocketBase" content="${escapeHtml(webSocketBases.join(','))}" />`,
@@ -119,7 +122,7 @@ export default defineConfig(({ mode, command }) => {
               `<meta name="proxyWebSocket" content="${proxyWebSocket ? 'true' : 'false'}" />`,
             )
           }
-          if (apiBases.length || cspApi.length || cspStatic.length) {
+          if (!isCloudflareBuild && (apiBases.length || cspApi.length || cspStatic.length)) {
             const staticOrigins = cspStatic.join(' ')
             const csp = [
               'default-src \'self\'',
