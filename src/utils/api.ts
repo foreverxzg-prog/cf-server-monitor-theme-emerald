@@ -172,6 +172,17 @@ export class ApiError extends Error {
   }
 }
 
+/** A browser-only network failure while requesting a backend on another origin. */
+export class CorsError extends ApiError {
+  origin: string
+
+  constructor(origin: string, apiIndex?: number) {
+    super('跨域请求被浏览器拦截', undefined, apiIndex)
+    this.name = 'CorsError'
+    this.origin = origin
+  }
+}
+
 const sourceRegistry = new Map<string, ServerSource>()
 let cachedSiteConfigs: SiteConfig[] = []
 
@@ -397,16 +408,39 @@ function authHeaders(baseUrl: string): Record<string, string> {
   return headers
 }
 
+function isCrossOriginRequest(baseUrl: string): boolean {
+  if (typeof window === 'undefined')
+    return false
+
+  try {
+    return new URL(baseUrl, window.location.origin).origin !== window.location.origin
+  }
+  catch {
+    return false
+  }
+}
+
 async function request<T>(path: string, apiIndex = 0, options: RequestInit = {}): Promise<T> {
   const bases = getApiBases()
   const baseUrl = bases[apiIndex] ?? bases[0] ?? ''
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      ...authHeaders(baseUrl),
-      ...options.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(baseUrl),
+        ...options.headers,
+      },
+    })
+  }
+  catch (error) {
+    // Fetch intentionally hides CORS details from JavaScript. For a request to
+    // another origin, this gives the UI a useful remediation path instead of a
+    // generic connection error.
+    if (isCrossOriginRequest(baseUrl))
+      throw new CorsError(window.location.origin, apiIndex)
+    throw error
+  }
 
   let data: unknown
   try {
